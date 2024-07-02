@@ -1,0 +1,5 @@
+/images
+/outputs
+/serving_model_dir
+/raw_data
+/modules/__pycache__
