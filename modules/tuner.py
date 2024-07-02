@@ -1,22 +1,15 @@
-"""Tuner module
+"""
+Tuner module
 """
 
-# Import Library
 import kerastuner as kt
 import tensorflow as tf
-from keras.layers import (
-    Input,
-    Dense,
-    Dropout,
-    Conv1D,
-    GlobalMaxPooling1D,
-    Embedding,
-    TextVectorization,
-)
+from keras.layers import TextVectorization
 from tfx.components.trainer.fn_args_utils import FnArgs
 from tfx.components.tuner.component import TunerFnResult
 import tensorflow_transform as tft
 from transform import LABEL_KEY, FEATURE_KEY, transformed_name
+from model import cnn_model
 
 BATCH_SIZE = 64
 TUNE_EPOCHS = 5
@@ -36,7 +29,6 @@ def input_fn(file_pattern, tf_transform_output, num_epochs=None, batch_size=BATC
         tf_transform_output: A TFTransformOutput.
         batch_size: representing the number of consecutive elements of
         returned dataset to combine in a single batch
-
     Returns:
         A dataset that contains (features, indices) tuple where features
         is a dictionary of Tensors, and indices is a single Tensor of
@@ -52,59 +44,6 @@ def input_fn(file_pattern, tf_transform_output, num_epochs=None, batch_size=BATC
         label_key=transformed_name(LABEL_KEY),
     )
     return dataset
-
-
-def cnn_model(hp, vectorize_layer):
-    """Build Keras model
-        hp : HyperParameters
-        vectorize_layer : TextVectorization layer adapted from Tuner
-    Returns:
-        A Keras model object"""
-
-    inputs = Input(shape=(1,), dtype=tf.string, name=transformed_name(FEATURE_KEY))
-    reshaped_narrative = tf.reshape(inputs, [-1])
-    layers = vectorize_layer(reshaped_narrative)
-    layers = Embedding(
-        input_dim=vectorize_layer.vocabulary_size(),
-        output_dim=hp.Int("embedding_dim", min_value=16, max_value=128, step=8),
-    )(layers)
-
-    layers = Conv1D(
-        filters=hp.Int("conv1d_1", min_value=32, max_value=128, step=16),
-        kernel_size=3,
-        activation="relu",
-    )(layers)
-
-    layers = GlobalMaxPooling1D()(layers)
-
-    layers = Dense(
-        units=hp.Int("fc_1", min_value=32, max_value=256, step=32),
-        activation="relu",
-    )(layers)
-    layers = Dropout(hp.Float("dropout_1", min_value=0.0, max_value=0.5, step=0.1))(
-        layers
-    )
-
-    layers = Dense(
-        units=hp.Int("fc_2", min_value=32, max_value=128, step=16),
-        activation="relu",
-    )(layers)
-    layers = Dropout(hp.Float("dropout_2", min_value=0.0, max_value=0.5, step=0.1))(
-        layers
-    )
-
-    outputs = Dense(1, activation="sigmoid")(layers)
-
-    model = tf.keras.Model(inputs=inputs, outputs=outputs)
-
-    model.compile(
-        optimizer=tf.keras.optimizers.Adam(
-            hp.Float("learning_rate", 1e-6, 5e-4, sampling="LOG")
-        ),
-        loss="binary_crossentropy",
-        metrics=["accuracy"],
-    )
-    return model
 
 
 def tuner_fn(fn_args: FnArgs):
