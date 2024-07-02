@@ -1,7 +1,7 @@
 FROM tensorflow/serving:latest
  
 COPY ./outputs/serving_model /models/hoax-model
-COPY ./config /model_config
+COPY ./monitoring /model_config
 ENV MODEL_NAME=hoax-model
  
 ENV MONITORING_CONFIG="/model_config/prometheus.config"
