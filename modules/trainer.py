@@ -1,9 +1,7 @@
 """Training module 
 """
 
-# Import Library
 import os
-
 import tensorflow as tf
 from keras.callbacks import (
     EarlyStopping,
@@ -12,33 +10,18 @@ from keras.callbacks import (
     ReduceLROnPlateau,
 )
 from keras.utils.vis_utils import plot_model
-from keras.layers import (
-    TextVectorization,
-    Input,
-    Embedding,
-    Dense,
-    Dropout,
-    Conv1D,
-    GlobalMaxPooling1D,
-)
+from keras.layers import TextVectorization
 import tensorflow_transform as tft
 from tfx.components.trainer.fn_args_utils import FnArgs
-
-from transform import (
-    LABEL_KEY,
-    FEATURE_KEY,
-    transformed_name,
-)
-
+from transform import LABEL_KEY, FEATURE_KEY, transformed_name
 from tuner import input_fn, BATCH_SIZE
-
+from model import cnn_model
 
 TRAIN_EPOCHS = 30
 
 
 def _get_serve_tf_examples_fn(model, tf_transform_output):
     """Returns a function that parses a serialized tf.Example."""
-
     model.tft_layer = tf_transform_output.transform_features_layer()
 
     @tf.function
@@ -54,50 +37,6 @@ def _get_serve_tf_examples_fn(model, tf_transform_output):
         return {"outputs": outputs}
 
     return serve_tf_examples_fn
-
-
-def cnn_model(hp, vectorize_layer):
-    """Build Keras model
-        hp : HyperParameters
-        vectorize_layer : TextVectorization layer adapted from Tuner
-    Returns:
-        A Keras model object"""
-
-    inputs = Input(shape=(1,), dtype=tf.string, name=transformed_name(FEATURE_KEY))
-    reshaped_narrative = tf.reshape(inputs, [-1])
-    layers = vectorize_layer(reshaped_narrative)
-    layers = Embedding(
-        input_dim=vectorize_layer.vocabulary_size(),
-        output_dim=hp["embedding_dim"],
-    )(layers)
-
-    layers = Conv1D(
-        filters=hp["conv1d_1"],
-        kernel_size=3,
-        activation="relu",
-    )(layers)
-    layers = GlobalMaxPooling1D()(layers)
-
-    layers = Dense(
-        units=hp["fc_1"],
-        activation="relu",
-    )(layers)
-    layers = Dropout(hp["dropout_1"])(layers)
-    layers = Dense(
-        units=hp["fc_2"],
-        activation="relu",
-    )(layers)
-    layers = Dropout(hp["dropout_2"])(layers)
-    outputs = Dense(1, activation="sigmoid")(layers)
-
-    model = tf.keras.Model(inputs=inputs, outputs=outputs)
-
-    model.compile(
-        optimizer=tf.keras.optimizers.Adam(hp["learning_rate"]),
-        loss="binary_crossentropy",
-        metrics=["accuracy"],
-    )
-    return model
 
 
 def run_fn(fn_args: FnArgs):

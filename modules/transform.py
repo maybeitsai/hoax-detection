@@ -1,4 +1,5 @@
-"""Transform module
+"""
+Transform module
 """
 
 # Import Library
