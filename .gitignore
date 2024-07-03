@@ -2,3 +2,4 @@
 /hkacode-pipeline
 modules/hkacode-pylint.png
 monitoring/hkacode-monitoring.png
+*.zip
